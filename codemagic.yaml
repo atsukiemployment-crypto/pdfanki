@@ -17,9 +17,8 @@ workflows:
     integrations:
       app_store_connect: ASC_API_KEY
     environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.YOURNAME.pdfstudy
+      vars:
+        BUNDLE_ID: "com.YOURNAME.pdfstudy"
       node: 20.11.0
       xcode: latest
       cocoapods: default
@@ -58,6 +57,15 @@ workflows:
           npx @capacitor/assets generate --ios
       - name: Webアセット同期
         script: npx cap sync ios
+      - name: 署名証明書・プロファイルを取得（無ければ自動生成）
+        script: |
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+      - name: 証明書をキーチェーンに登録
+        script: |
+          keychain initialize
+          keychain add-certificates
       - name: 署名プロファイル適用
         script: xcode-project use-profiles
       - name: IPAビルド
