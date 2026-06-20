@@ -47,14 +47,17 @@ workflows:
         script: npm install
       - name: iOSプロジェクト生成
         script: npx cap add ios
-      - name: XcodeプロジェクトのBundle IDを設定
+      - name: XcodeプロジェクトのBundle IDと最低iOSバージョンを設定
         script: |
           # Capacitorが生成したXcodeプロジェクト内のPRODUCT_BUNDLE_IDENTIFIERを
           # 正しいBundle IDに揃える（これがズレているとプロファイルが一致せず署名に失敗する）。
           cd ios/App
           sed -i '' "s/PRODUCT_BUNDLE_IDENTIFIER = [^;]*;/PRODUCT_BUNDLE_IDENTIFIER = $BUNDLE_ID;/g" App.xcodeproj/project.pbxproj
-          echo "Bundle IDを $BUNDLE_ID に設定しました"
+          # PencilKitはiOS 14以降の機能を使うため、最低対応バージョンを15.0に引き上げる。
+          sed -i '' "s/IPHONEOS_DEPLOYMENT_TARGET = [^;]*;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g" App.xcodeproj/project.pbxproj
+          echo "Bundle IDを $BUNDLE_ID に、最低iOSを15.0に設定しました"
           grep -m1 PRODUCT_BUNDLE_IDENTIFIER App.xcodeproj/project.pbxproj
+          grep -m1 IPHONEOS_DEPLOYMENT_TARGET App.xcodeproj/project.pbxproj
           cd ../..
       - name: PencilKitプラグインを組み込み
         script: |
