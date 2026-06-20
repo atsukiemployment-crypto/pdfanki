@@ -45,6 +45,15 @@ workflows:
         script: npm install
       - name: iOSプロジェクト生成
         script: npx cap add ios
+      - name: XcodeプロジェクトのBundle IDを設定
+        script: |
+          # Capacitorが生成したXcodeプロジェクト内のPRODUCT_BUNDLE_IDENTIFIERを
+          # 正しいBundle IDに揃える（これがズレているとプロファイルが一致せず署名に失敗する）。
+          cd ios/App
+          sed -i '' "s/PRODUCT_BUNDLE_IDENTIFIER = [^;]*;/PRODUCT_BUNDLE_IDENTIFIER = $BUNDLE_ID;/g" App.xcodeproj/project.pbxproj
+          echo "Bundle IDを $BUNDLE_ID に設定しました"
+          grep -m1 PRODUCT_BUNDLE_IDENTIFIER App.xcodeproj/project.pbxproj
+          cd ../..
       - name: PencilKitプラグインを組み込み
         script: |
           cp ios-extras/PencilKitPlugin.swift ios/App/App/
