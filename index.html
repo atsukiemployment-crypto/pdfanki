@@ -1815,13 +1815,42 @@ document.addEventListener('keydown',e=>{
 
 // ── ネイティブ版(Capacitor)判定 ──
 // ネイティブで動いている時はPencilKitを「主役」にし、Webのペンツールバーを撤去する(A案)。
-const PK = (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()
-            && window.Capacitor.Plugins && window.Capacitor.Plugins.PencilKitPlugin)
-           ? window.Capacitor.Plugins.PencilKitPlugin : null;
+let PK = null;
+(function initPK(){
+  const cap = window.Capacitor;
+  if(!cap) return;                       // Webブラウザ/PWA → PKはnullのまま
+  const isNative = (typeof cap.isNativePlatform==='function') ? cap.isNativePlatform() : !!cap.isNative;
+  if(!isNative) return;
+  // 1) 既に Plugins に登録済みならそれを使う
+  if(cap.Plugins && cap.Plugins.PencilKitPlugin){
+    PK = cap.Plugins.PencilKitPlugin;
+  }
+  // 2) registerPlugin が使えるなら明示的に登録（Capacitor 6 のネイティブプラグイン）
+  else if(typeof cap.registerPlugin === 'function'){
+    try { PK = cap.registerPlugin('PencilKitPlugin'); } catch(e){ PK = null; }
+  }
+}());
 
 if(PK){
   document.documentElement.classList.add('native-pk');
 }
+
+// デバッグ用: 環境を画面下に小さく表示（実機で原因を見るため。確認後に消せる）
+(function showEnvDebug(){
+  try{
+    const cap = window.Capacitor;
+    const info = !cap ? 'Capacitor:なし(Web/PWA)'
+      : 'Capacitor:あり / native=' + ((cap.isNativePlatform&&cap.isNativePlatform())||cap.isNative)
+        + ' / Plugins=' + (cap.Plugins?Object.keys(cap.Plugins).join(','):'なし')
+        + ' / PK=' + (PK?'OK':'null');
+    const d=document.createElement('div');
+    d.textContent=info;
+    d.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99999;background:rgba(0,0,0,.8);color:#fff;font-size:10px;padding:3px 6px;text-align:center;';
+    d.id='env-debug';
+    (document.body||document.documentElement).appendChild(d);
+    setTimeout(()=>{const e=document.getElementById('env-debug');if(e)e.style.opacity='0.25';},6000);
+  }catch(_){}
+}());
 
 // 学習中の全ページ(PDF+白紙)を縦結合した巻物画像と、切り分け情報を作る
 function buildScrollImage(){
