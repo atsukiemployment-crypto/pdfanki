@@ -68,7 +68,11 @@ workflows:
           keychain add-certificates
           xcode-project use-profiles
       - name: IPAビルド
-        script: xcode-project build-ipa --workspace ios/App/App.xcworkspace --scheme App
+        script: |
+          xcode-project build-ipa \
+            --workspace ios/App/App.xcworkspace \
+            --scheme App \
+            --archive-flags="-destination 'generic/platform=iOS'"
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
