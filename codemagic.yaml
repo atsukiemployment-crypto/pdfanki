@@ -1,0 +1,70 @@
+# Codemagic 用ビルド設定（フラット版）
+# 全ファイルがリポジトリ直下にベタ置きされている前提で、
+# ビルド開始時に Capacitor が必要とするフォルダ構成へ自動で振り分ける。
+# （GitHubのWebアップロードでフォルダが扱えない問題への対応版）
+#
+# 事前準備（SETUP.md 参照）:
+#   1. Codemagic の Team settings > Integrations > App Store Connect で
+#      APIキーを「ASC_API_KEY」という名前で登録
+#   2. 下の bundle_identifier と capacitor.config.json の appId を
+#      自分のものに変更（両者を一致させること）
+
+workflows:
+  ios-testflight:
+    name: iOS Build & TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: ASC_API_KEY
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.YOURNAME.pdfstudy
+      node: 20.11.0
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: フラット構成をフォルダ構成へ復元
+        script: |
+          # Webアプリ本体
+          mkdir -p www
+          cp index.html www/
+          cp manifest.webmanifest www/
+          cp icon-180.png icon-192.png icon-512.png www/
+          # ネイティブプラグイン
+          mkdir -p ios-extras
+          cp PencilKitPlugin.swift PencilKitPlugin.m ios-extras/
+          # CI補助スクリプト
+          mkdir -p scripts
+          cp add_plugin_files.rb scripts/
+          # アプリアイコン・起動画面の素材
+          mkdir -p assets
+          cp icon-only.png splash.png splash-dark.png assets/
+          echo "フォルダ構成を復元しました"
+          ls -R www ios-extras scripts assets
+      - name: npm依存の取得
+        script: npm install
+      - name: iOSプロジェクト生成
+        script: npx cap add ios
+      - name: PencilKitプラグインを組み込み
+        script: |
+          cp ios-extras/PencilKitPlugin.swift ios/App/App/
+          cp ios-extras/PencilKitPlugin.m ios/App/App/
+          gem install xcodeproj --no-document
+          ruby scripts/add_plugin_files.rb
+      - name: アプリアイコン・起動画面を生成
+        script: |
+          npm install --save-dev @capacitor/assets
+          npx @capacitor/assets generate --ios
+      - name: Webアセット同期
+        script: npx cap sync ios
+      - name: 署名プロファイル適用
+        script: xcode-project use-profiles
+      - name: IPAビルド
+        script: xcode-project build-ipa --workspace ios/App/App.xcworkspace --scheme App
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

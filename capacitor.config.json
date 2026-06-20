@@ -1,0 +1,8 @@
+{
+  "appId": "com.YOURNAME.pdfstudy",
+  "appName": "PDF Study",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "automatic"
+  }
+}
