@@ -17,6 +17,8 @@ workflows:
     integrations:
       app_store_connect: ASC_API_KEY
     environment:
+      groups:
+        - appstore
       vars:
         BUNDLE_ID: "com.YOURNAME.pdfstudy"
       node: 20.11.0
@@ -66,20 +68,22 @@ workflows:
           npx @capacitor/assets generate --ios
       - name: Webアセット同期
         script: npx cap sync ios
-      - name: 署名ファイルを取得してプロファイルを作成・適用
+      - name: 証明書をキーチェーンに登録（手元の.p12を使用）
         script: |
-          # UIに配布証明書(pdfstudy-dist)が登録済み。
-          # fetch-signing-files が UIの証明書を取得し、プロファイルが無ければ自動作成する。
+          # Codemagicの環境変数 CM_CERTIFICATE（.p12のbase64）と
+          # CM_CERTIFICATE_PASSWORD を使い、手元の配布証明書をキーチェーンに入れる。
           keychain initialize
-          # まずUI/Portalの既存の配布証明書を取得（--save でキーチェーン用に保存）
-          app-store-connect certificates list \
-            --type IOS_DISTRIBUTION \
-            --save || true
-          # Bundle ID用のApp Storeプロファイルを取得、無ければ作成
+          echo "$CM_CERTIFICATE" | base64 --decode > /tmp/certificate.p12
+          keychain add-certificates \
+            --certificate /tmp/certificate.p12 \
+            --certificate-password "$CM_CERTIFICATE_PASSWORD"
+      - name: プロファイルを取得・作成して適用
+        script: |
+          # キーチェーンに証明書が入った状態で、このBundle ID用の
+          # App Storeプロファイルを取得、無ければ作成する。
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --create
-          keychain add-certificates
           xcode-project use-profiles
       - name: IPAビルド
         script: |
