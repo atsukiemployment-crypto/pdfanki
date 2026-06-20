@@ -17,11 +17,6 @@ workflows:
     integrations:
       app_store_connect: ASC_API_KEY
     environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.YOURNAME.pdfstudy
-        certificates:
-          - pdfstudy-dist
       vars:
         BUNDLE_ID: "com.YOURNAME.pdfstudy"
       node: 20.11.0
@@ -71,10 +66,20 @@ workflows:
           npx @capacitor/assets generate --ios
       - name: Webアセット同期
         script: npx cap sync ios
-      - name: 署名プロファイルを適用
+      - name: 署名ファイルを取得してプロファイルを作成・適用
         script: |
-          # ios_signingブロックがUIの証明書(pdfstudy-dist)を供給する。
-          # ここではこのBundle ID用のプロファイルを取得/生成し、Xcodeに適用する。
+          # UIに配布証明書(pdfstudy-dist)が登録済み。
+          # fetch-signing-files が UIの証明書を取得し、プロファイルが無ければ自動作成する。
+          keychain initialize
+          # まずUI/Portalの既存の配布証明書を取得（--save でキーチェーン用に保存）
+          app-store-connect certificates list \
+            --type IOS_DISTRIBUTION \
+            --save || true
+          # Bundle ID用のApp Storeプロファイルを取得、無ければ作成
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
           xcode-project use-profiles
       - name: IPAビルド
         script: |
