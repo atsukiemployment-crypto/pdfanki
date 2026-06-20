@@ -27,6 +27,10 @@ public class PencilKitPlugin: CAPPlugin {
         let count = call.getString("count") ?? ""
 
         DispatchQueue.main.async {
+            guard #available(iOS 14.0, *) else {
+                call.reject("この機能はiOS 14以降が必要です")
+                return
+            }
             guard let bridgeVC = self.bridge?.viewController else {
                 call.reject("no view controller")
                 return
@@ -50,6 +54,10 @@ public class PencilKitPlugin: CAPPlugin {
 
     @objc func close(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
+            guard #available(iOS 14.0, *) else {
+                call.resolve()
+                return
+            }
             if let presented = self.bridge?.viewController?.presentedViewController as? PencilDrawViewController {
                 presented.dismiss(animated: true)
             }
@@ -58,6 +66,7 @@ public class PencilKitPlugin: CAPPlugin {
     }
 }
 
+@available(iOS 14.0, *)
 final class PencilDrawViewController: UIViewController, UIScrollViewDelegate {
     private var backgroundImage: UIImage
     private var labelText: String
