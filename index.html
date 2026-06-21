@@ -82,6 +82,11 @@ body{font-family:'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP',sans
 .page-range input{width:64px;}
 .page-range span{color:var(--text2);}
 .priority-btns{display:flex;gap:6px;}
+.difficulty-btns{display:flex;gap:6px;}
+.dif-btn{flex:1;padding:5px;border-radius:var(--r);border:1.5px solid var(--border2);background:transparent;cursor:pointer;font-size:11px;font-weight:600;font-family:inherit;color:var(--text3);}
+.dif-btn[data-v="A"].active{background:var(--red-bg);border-color:var(--red);color:var(--red);}
+.dif-btn[data-v="B"].active{background:var(--amber-bg);border-color:var(--amber);color:var(--amber);}
+.dif-btn[data-v="C"].active{background:var(--green-bg);border-color:var(--green);color:var(--green);}
 .pri-btn{flex:1;padding:5px;border-radius:var(--r);border:1.5px solid var(--border2);background:transparent;cursor:pointer;font-size:11px;font-weight:600;font-family:inherit;color:var(--text3);}
 .pri-btn[data-v="A"].active{background:var(--red-bg);border-color:var(--red);color:var(--red);}
 .pri-btn[data-v="B"].active{background:var(--amber-bg);border-color:var(--amber);color:var(--amber);}
@@ -128,6 +133,11 @@ body{font-family:'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP',sans
 .filter-chip.active{background:var(--accent-bg);border-color:var(--accent);color:var(--accent);}
 .filter-chip.indent1{margin-left:10px;font-size:10px;}
 .pri-filter-btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+.dif-filter-btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+.df-btn{padding:4px 12px;border-radius:20px;border:1.5px solid var(--border2);background:transparent;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;color:var(--text3);}
+.df-btn[data-v="A"].active{background:var(--red-bg);border-color:var(--red);color:var(--red);}
+.df-btn[data-v="B"].active{background:var(--amber-bg);border-color:var(--amber);color:var(--amber);}
+.df-btn[data-v="C"].active{background:var(--green-bg);border-color:var(--green);color:var(--green);}
 .pf-btn{padding:4px 12px;border-radius:20px;border:1.5px solid var(--border2);background:transparent;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;color:var(--text3);}
 .pf-btn[data-v="A"].active{background:var(--red-bg);border-color:var(--red);color:var(--red);}
 .pf-btn[data-v="B"].active{background:var(--amber-bg);border-color:var(--amber);color:var(--amber);}
@@ -294,6 +304,14 @@ html.native-pk #drawing-toolbar{display:none !important;}
 html.native-pk #study-progress-wrap{margin-top:0;}
 /* 採点・スキップ・ページ送りはPencilKit全画面側に集約されるため、Webフッターの該当ボタンも隠す */
 html.native-pk #study-footer #note-btn{display:none;}
+/* 三点リーダーメニュー */
+#more-menu-wrap{position:relative;display:inline-block;}
+#more-btn{font-size:20px;line-height:1;font-weight:700;min-width:38px;}
+#more-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);box-shadow:0 6px 24px rgba(0,0,0,.18);z-index:900;min-width:180px;overflow:hidden;}
+#more-menu.open{display:block;}
+.more-item{display:block;width:100%;text-align:left;padding:12px 16px;background:transparent;border:none;border-bottom:1px solid var(--border);font-size:14px;font-family:inherit;color:var(--text);cursor:pointer;box-sizing:border-box;}
+.more-item:last-child{border-bottom:none;}
+.more-item:hover,.more-item:active{background:var(--surface2);}
 </style>
 </head>
 <body>
@@ -307,8 +325,13 @@ html.native-pk #study-footer #note-btn{display:none;}
   <button class="tab" data-tab="review">要復習</button>
   <button class="tab" data-tab="hidden">非表示</button>
   <div class="nav-sep"></div>
-  <button class="tab" id="export-btn" style="color:var(--green);border-color:var(--green)">↓ 書き出し</button>
-  <label class="tab" style="cursor:pointer;color:var(--accent);border-color:var(--accent)">↑ 読み込み<input type="file" accept=".json" id="import-file-input" style="display:none"/></label>
+  <div id="more-menu-wrap">
+    <button class="tab" id="more-btn" aria-label="メニュー" title="メニュー">⋮</button>
+    <div id="more-menu">
+      <button class="more-item" id="export-btn">↓ データを書き出し</button>
+      <label class="more-item" style="cursor:pointer">↑ データを読み込み<input type="file" accept=".json" id="import-file-input" style="display:none"/></label>
+    </div>
+  </div>
 </div>
 
 <!-- IMPORT -->
@@ -358,11 +381,18 @@ html.native-pk #study-footer #note-btn{display:none;}
           <select id="q-to" style="width:72px;padding:6px 4px;border:1px solid var(--border2);border-radius:var(--r);background:var(--surface);color:var(--text);font-size:13px;font-family:inherit;outline:none;text-align:center;"></select>
         </div>
       </div>
-      <div class="frow"><label>優先度</label>
+      <div class="frow"><label>重要度</label>
         <div class="priority-btns">
           <button class="pri-btn active" data-v="A">A 重要</button>
           <button class="pri-btn" data-v="B">B 普通</button>
           <button class="pri-btn" data-v="C">C 低</button>
+        </div>
+      </div>
+      <div class="frow"><label>難易度</label>
+        <div class="difficulty-btns">
+          <button class="dif-btn" data-v="A">A 難</button>
+          <button class="dif-btn active" data-v="B">B 普通</button>
+          <button class="dif-btn" data-v="C">C 易</button>
         </div>
       </div>
       <div class="frow"><label>メモ（任意）</label><textarea id="q-memo" placeholder="ポイント・解説など"></textarea></div>
@@ -381,11 +411,18 @@ html.native-pk #study-footer #note-btn{display:none;}
     <div class="setup-section">
       <h3>フィルター</h3>
       <div class="frow"><label>タグ・サブタグ（複数選択可）</label><div class="filter-tags" id="filter-tag-area"></div></div>
-      <div class="frow" style="margin-top:10px"><label>優先度</label>
+      <div class="frow" style="margin-top:10px"><label>重要度</label>
         <div class="pri-filter-btns">
           <button class="pf-btn active" data-v="A">A 重要</button>
           <button class="pf-btn active" data-v="B">B 普通</button>
           <button class="pf-btn active" data-v="C">C 低</button>
+        </div>
+      </div>
+      <div class="frow" style="margin-top:10px"><label>難易度</label>
+        <div class="dif-filter-btns">
+          <button class="df-btn active" data-v="A">A 難</button>
+          <button class="df-btn active" data-v="B">B 普通</button>
+          <button class="df-btn active" data-v="C">C 易</button>
         </div>
       </div>
     </div>
@@ -579,8 +616,9 @@ let pdfDoc=null,curPage=1;
 let questions=[],tags=[];
 let studyQueue=[],studyIdx=0;
 let curPriority='A';
+let curDifficulty='B';
 let selMainTag=null,selSubTag=null; // single selection in registration
-let filterMainTags=[],filterSubTags=[],filterPris=['A','B','C']; // multi-select in setup
+let filterMainTags=[],filterSubTags=[],filterPris=['A','B','C'],filterDifs=['A','B','C']; // multi-select in setup
 let hfMainTags=[],hfSubTags=[];
 let rvMainTags=[],rvSubTags=[];
 let hidMainTags=[],hidSubTags=[];
@@ -641,6 +679,8 @@ async function load(){
     if(tg==null){const d=localStorage.getItem('pdfanki4_tags');if(d){tg=d;await idbSet('tags',d);localStorage.removeItem('pdfanki4_tags');}}
     if(q)questions=JSON.parse(q);
     if(tg)tags=JSON.parse(tg);
+    // 旧データに難易度が無い場合は B(普通) で補完
+    questions.forEach(qq=>{ if(!qq.difficulty)qq.difficulty='B'; });
   }catch(e){console.error(e);toast('データの読み込みでエラーが発生しました',true);}
   if(!tags.length)tags=[
     {id:'t1',name:'財務会計',subs:[{id:'s1',name:'減価償却'},{id:'s2',name:'有価証券'}]},
@@ -673,6 +713,21 @@ document.getElementById('nav').addEventListener('click',e=>{
   if(btn){e.preventDefault();gotoTab(btn.dataset.tab,btn);}
 });
 document.getElementById('export-btn').addEventListener('click',exportQuestions);
+// 三点リーダーメニューの開閉
+(function(){
+  const btn=document.getElementById('more-btn');
+  const menu=document.getElementById('more-menu');
+  if(btn&&menu){
+    btn.addEventListener('click',e=>{e.stopPropagation();menu.classList.toggle('open');});
+    document.addEventListener('click',e=>{
+      if(!menu.contains(e.target)&&e.target!==btn)menu.classList.remove('open');
+    });
+    // メニュー内の項目を押したら閉じる
+    menu.querySelectorAll('.more-item').forEach(it=>{
+      it.addEventListener('click',()=>menu.classList.remove('open'));
+    });
+  }
+})();
 
 function gotoTab(tab,btn){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
@@ -835,6 +890,10 @@ function setPriority(v){
   curPriority=v;
   document.querySelectorAll('.pri-btn').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
 }
+function setDifficulty(v){
+  curDifficulty=v;
+  document.querySelectorAll('.dif-btn').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
+}
 
 // ── REG TAGS (single select for registration) ──
 function renderRegTags(){
@@ -883,6 +942,7 @@ async function saveQuestion(){
     id:Date.now(),title,qNum,qNumSortA,qNumSortB,
     pageFrom:from,pageTo:to,memo,
     priority:curPriority,
+    difficulty:curDifficulty,
     mainTag:selMainTag,subTag:selSubTag,
     imageData:img,history:[],drawings:[],
     bookmarked:false,hidden:false
@@ -904,6 +964,7 @@ function renderQList(){
     return `<div class="qi${q.hidden?' hidden-q':''}">
       <span class="qi-label">${esc(label)||'（タイトルなし）'}</span>
       <span class="badge ${q.priority}">${q.priority}</span>
+      <span class="badge dif-badge ${q.difficulty||'B'}">難${q.difficulty||'B'}</span>
       <span class="badge">${q.history.length}回</span>
       ${q.bookmarked?'<span style="font-size:12px;flex-shrink:0">★</span>':''}
       <button class="qi-hide-btn" data-id="${q.id}">${q.hidden?'表示':'非表示'}</button>
@@ -1004,9 +1065,14 @@ function togglePriFilter(v){
   document.querySelectorAll('.pf-btn').forEach(b=>b.classList.toggle('active',filterPris.includes(b.dataset.v)));
   updateCountPreview();
 }
+function toggleDifFilter(v){
+  if(filterDifs.includes(v))filterDifs=filterDifs.filter(x=>x!==v);else filterDifs.push(v);
+  document.querySelectorAll('.df-btn').forEach(b=>b.classList.toggle('active',filterDifs.includes(b.dataset.v)));
+  updateCountPreview();
+}
 
 function getFilteredQuestions(){
-  let pool=questions.filter(q=>!q.hidden&&filterPris.includes(q.priority));
+  let pool=questions.filter(q=>!q.hidden&&filterPris.includes(q.priority)&&filterDifs.includes(q.difficulty||'B'));
   // tag filter
   if(filterMainTags.length>0){
     pool=pool.filter(q=>{
@@ -1041,6 +1107,7 @@ document.getElementById('max-q').addEventListener('change',updateCountPreview);
 ['opt-random','opt-prev-wrong','opt-freq-wrong','opt-unsolved','opt-bookmark'].forEach(id=>document.getElementById(id).addEventListener('change',updateCountPreview));
 document.getElementById('opt-accuracy').addEventListener('change',updateCountPreview);
 document.querySelector('.pri-filter-btns').addEventListener('click',e=>{const btn=e.target.closest('.pf-btn');if(btn)togglePriFilter(btn.dataset.v);});
+document.querySelector('.dif-filter-btns').addEventListener('click',e=>{const btn=e.target.closest('.df-btn');if(btn)toggleDifFilter(btn.dataset.v);});
 
 function startStudy(){
   studyQueue=getFilteredQuestions();
@@ -1734,6 +1801,7 @@ document.getElementById('sum-retry-btn').addEventListener('click',()=>{
 document.getElementById('comment-skip-btn').addEventListener('click',skipComment);
 document.getElementById('comment-save-btn').addEventListener('click',saveComment);
 document.querySelector('.priority-btns').addEventListener('click',e=>{const btn=e.target.closest('.pri-btn');if(btn)setPriority(btn.dataset.v);});
+document.querySelector('.difficulty-btns').addEventListener('click',e=>{const btn=e.target.closest('.dif-btn');if(btn)setDifficulty(btn.dataset.v);});
 
 // ── INIT ──
 load().then(()=>{
@@ -1907,7 +1975,9 @@ async function runNativeStudyTurn(){
       background:built.data,
       count:`${studyIdx+1} / ${studyQueue.length}`,
       label:qLabel(q)||'',
-      title:q.title||''
+      title:q.title||'',
+      priority:q.priority||'',
+      difficulty:q.difficulty||'B'
     });
   }catch(e){ return; }
 
