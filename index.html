@@ -681,6 +681,11 @@ async function load(){
     if(tg)tags=JSON.parse(tg);
     // 旧データに難易度が無い場合は B(普通) で補完
     questions.forEach(qq=>{ if(!qq.difficulty)qq.difficulty='B'; });
+    // 手書きは保存しない方針に変更。既存の手書きデータが残っていれば掃除して
+    // 保存サイズを軽くする（これまで肥大化していたデータの回復）。
+    let hadDrawings=false;
+    questions.forEach(qq=>{ if(qq.drawings&&qq.drawings.length){hadDrawings=true;qq.drawings=[];} });
+    if(hadDrawings){ try{ await idbSet('q',JSON.stringify(questions)); }catch(_){} }
   }catch(e){console.error(e);toast('データの読み込みでエラーが発生しました',true);}
   if(!tags.length)tags=[
     {id:'t1',name:'財務会計',subs:[{id:'s1',name:'減価償却'},{id:'s2',name:'有価証券'}]},
@@ -1467,24 +1472,9 @@ function scheduleAutoSave(){
   },700);
 }
 function persistDrawing(q){
-  const roundNum=q.history.length+1;
-  if(!pages.length)return;
-  const slotW=pages[0].drawCanvas.width;
-  const gap=12;
-  const totalH=pages.reduce((s,p)=>s+p.drawCanvas.height,0)+gap*(pages.length-1);
-  const mc=document.createElement('canvas');mc.width=slotW;mc.height=totalH;
-  const mctx=mc.getContext('2d');
-  let y=0;
-  pages.forEach(p=>{
-    const h=p.drawCanvas.height;
-    if(p.pdfCanvas)mctx.drawImage(p.pdfCanvas,0,y,slotW,h);
-    else{mctx.fillStyle='#fff';mctx.fillRect(0,y,slotW,h);}
-    mctx.drawImage(p.drawCanvas,0,y,slotW,h);
-    y+=h+gap;
-  });
-  const data=mc.toDataURL('image/jpeg',0.82);
-  const di=q.drawings.findIndex(d=>d.round===roundNum);
-  if(di>=0)q.drawings[di].data=data;else q.drawings.push({round:roundNum,data});
+  // 手書きは履歴に保存しない方針（保存データの肥大化と保存失敗を防ぐため）。
+  // 解答中の手書きはその場限り。履歴・解答時間などの軽いデータのみ saveQ() で保存する。
+  return;
 }
 
 
@@ -1642,22 +1632,21 @@ function renderHistory(){
   pool.forEach(q=>{
     const card=document.createElement('div');card.className='hcard';
     const roundsHtml=q.history.map(h=>{
-      const drw=q.drawings.find(d=>d.round===h.round);
       return `<div class="hround">
         <div class="hround-left">
           <span class="hround-num">第${h.round}回</span>
           <span class="hres ${h.correct?'ok':'ng'}">${h.correct?'正解':'不正解'}</span>
           <span class="hdate">${h.date}</span>
           ${h.comment?`<div class="hcomment">${esc(h.comment)}</div>`:''}
-        </div>
-        ${drw?`<img class="hcomp" src="${drw.data}" title="拡大"/>`:''}</div>`;
+        </div></div>`;
     }).join('');
     card.innerHTML=`<div class="hcard-header">
       <span class="hcard-title">${esc(qDisplayTitle(q))||'（タイトルなし）'}</span>
       <span class="badge ${q.priority}">${q.priority}</span>
       ${q.bookmarked?'<span style="font-size:12px">★</span>':''}
+      ${q.imageData?`<a class="view-q-link" data-img="1" style="margin-left:auto;font-size:12px;color:var(--accent);cursor:pointer;white-space:nowrap">問題を見る</a>`:''}
     </div><div class="hcard-rounds">${roundsHtml}</div>`;
-    card.querySelectorAll('.hcomp').forEach(img=>img.addEventListener('click',()=>viewImg(img.src)));
+    if(q.imageData){const lnk=card.querySelector('.view-q-link');if(lnk)lnk.addEventListener('click',()=>viewImg(q.imageData));}
     list.appendChild(card);
   });
 }
@@ -1676,13 +1665,11 @@ function renderReview(){
   pool.forEach(q=>{
     const last2=q.history.slice(-2);
     const card=document.createElement('div');card.className='rcard';
-    const thumbsHtml=last2.map(h=>{const drw=q.drawings.find(d=>d.round===h.round);return drw?`<img class="rthumb" src="${drw.data}" title="第${h.round}回"/>`:''}).join('');
     const commentsHtml=last2.map(h=>`<div class="rcomment-row"><div class="rcomment-label">第${h.round}回（${h.date}）</div>${h.comment?`<div class="rcomment-text">${esc(h.comment)}</div>`:'<div style="font-size:11px;color:var(--text3)">コメントなし</div>'}</div>`).join('');
     card.innerHTML=`<div class="rcard-header">
       <span class="rcard-title">${esc(qDisplayTitle(q))||'（タイトルなし）'}</span>
       <span class="badge ${q.priority}">${q.priority}</span>
-    </div><div class="rcard-body"><div class="rcard-thumb-row"><div class="rcard-thumbs">${thumbsHtml}</div><div class="rcard-comments">${commentsHtml}</div></div></div>`;
-    card.querySelectorAll('.rthumb').forEach(img=>img.addEventListener('click',()=>viewImg(img.src)));
+    </div><div class="rcard-body"><div class="rcard-thumb-row"><div class="rcard-comments">${commentsHtml}</div></div></div>`;
     list.appendChild(card);
   });
 }
