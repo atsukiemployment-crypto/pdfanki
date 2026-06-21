@@ -1729,6 +1729,7 @@ document.getElementById('sum-retry-btn').addEventListener('click',()=>{
   if(!miss.length)return;
   studyQueue=miss;studyIdx=0;sessionResults=[];
   showStudyQ();
+  if(typeof PK!=='undefined'&&PK){setTimeout(runNativeStudyTurn,80);}
 });
 document.getElementById('comment-skip-btn').addEventListener('click',skipComment);
 document.getElementById('comment-save-btn').addEventListener('click',saveComment);
@@ -1936,7 +1937,9 @@ async function runNativeStudyTurn(){
     return;
   }
   if(action==='wrong'){
-    // 不正解のみ: 一度Web側に戻ってコメント入力(A案・確認済みの方針)
+    // 不正解のみ: PencilKit全画面を閉じてからWeb側でコメント入力(A案)。
+    // 閉じないとモーダルが全画面の裏に隠れて操作不能になる。
+    if(PK.close)PK.close();
     pendingResult={correct:false,q};
     const line=document.getElementById('comment-result-line');
     line.textContent='✗ 不正解';line.className='ng';
@@ -1944,7 +1947,7 @@ async function runNativeStudyTurn(){
     document.getElementById('comment-save-btn').textContent='保存して次へ';
     document.getElementById('comment-skip-btn').textContent='スキップ';
     document.getElementById('comment-modal').classList.add('open');
-    setTimeout(()=>document.getElementById('comment-input').focus(),100);
+    setTimeout(()=>document.getElementById('comment-input').focus(),300);
   }
 }
 
