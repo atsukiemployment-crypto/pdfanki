@@ -55,9 +55,17 @@ workflows:
           sed -i '' "s/PRODUCT_BUNDLE_IDENTIFIER = [^;]*;/PRODUCT_BUNDLE_IDENTIFIER = $BUNDLE_ID;/g" App.xcodeproj/project.pbxproj
           # PencilKitはiOS 14以降の機能を使うため、最低対応バージョンを15.0に引き上げる。
           sed -i '' "s/IPHONEOS_DEPLOYMENT_TARGET = [^;]*;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g" App.xcodeproj/project.pbxproj
-          echo "Bundle IDを $BUNDLE_ID に、最低iOSを15.0に設定しました"
+          # ビルド番号を「現在時刻の通し番号」にして毎回必ず一意かつ増加させる。
+          # App Store Connectは同じビルド番号を二度受け付けないため。
+          NEW_BUILD=$(date +%Y%m%d%H%M)
+          echo "ビルド番号: $NEW_BUILD"
+          # project.pbxproj の CURRENT_PROJECT_VERSION を書き換え
+          sed -i '' "s/CURRENT_PROJECT_VERSION = [^;]*;/CURRENT_PROJECT_VERSION = $NEW_BUILD;/g" App.xcodeproj/project.pbxproj
+          # Info.plist の CFBundleVersion も直接書き換え（確実に効かせる）
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEW_BUILD" App/Info.plist 2>/dev/null || true
+          echo "Bundle ID=$BUNDLE_ID / iOS=15.0 / build=$NEW_BUILD に設定しました"
           grep -m1 PRODUCT_BUNDLE_IDENTIFIER App.xcodeproj/project.pbxproj
-          grep -m1 IPHONEOS_DEPLOYMENT_TARGET App.xcodeproj/project.pbxproj
+          grep -m1 CURRENT_PROJECT_VERSION App.xcodeproj/project.pbxproj
           cd ../..
       - name: PencilKitプラグインを組み込み
         script: |
