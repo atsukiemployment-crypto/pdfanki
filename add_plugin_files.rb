@@ -11,7 +11,7 @@ raise 'App target not found' unless target
 group = project.main_group.find_subpath('App', false)
 raise 'App group not found' unless group
 
-['PencilKitPlugin.swift', 'MainViewController.swift'].each do |filename|
+['PencilKitPlugin.swift'].each do |filename|
   next if group.files.any? { |f| f.path == filename }
   ref = group.new_reference(filename)
   target.add_file_references([ref])
