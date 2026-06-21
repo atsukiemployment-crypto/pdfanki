@@ -31,6 +31,8 @@ public class PencilKitPlugin: CAPPlugin, CAPBridgedPlugin {
         let label = call.getString("label") ?? ""
         let title = call.getString("title") ?? ""
         let count = call.getString("count") ?? ""
+        let priority = call.getString("priority") ?? ""
+        let difficulty = call.getString("difficulty") ?? ""
 
         DispatchQueue.main.async {
             guard #available(iOS 14.0, *) else {
@@ -41,7 +43,7 @@ public class PencilKitPlugin: CAPPlugin, CAPBridgedPlugin {
                 call.reject("no view controller")
                 return
             }
-            let vc = PencilDrawViewController(background: bgImage, label: label, title: title, count: count)
+            let vc = PencilDrawViewController(background: bgImage, label: label, title: title, count: count, priority: priority, difficulty: difficulty)
             vc.modalPresentationStyle = .fullScreen
             vc.onFinish = { action, drawingImage in
                 var ret: [String: Any] = ["action": action]
@@ -78,6 +80,8 @@ final class PencilDrawViewController: UIViewController, UIScrollViewDelegate {
     private var labelText: String
     private var titleText: String
     private var countText: String
+    private var priorityText: String
+    private var difficultyText: String
 
     private let scrollView = UIScrollView()
     private let contentView = UIView()
@@ -85,16 +89,20 @@ final class PencilDrawViewController: UIViewController, UIScrollViewDelegate {
     private let canvasView = PKCanvasView()
     private let topBar = UIView()
     private let infoLabel = UILabel()
+    private let priBadge = UILabel()
+    private let difBadge = UILabel()
     private var toolPicker: PKToolPicker?
     private var lastArea = CGRect.zero
     var onFinish: ((String, UIImage?) -> Void)?
     private var finished = false
 
-    init(background: UIImage, label: String, title: String, count: String) {
+    init(background: UIImage, label: String, title: String, count: String, priority: String = "", difficulty: String = "") {
         self.backgroundImage = background
         self.labelText = label
         self.titleText = title
         self.countText = count
+        self.priorityText = priority
+        self.difficultyText = difficulty
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -123,6 +131,7 @@ final class PencilDrawViewController: UIViewController, UIScrollViewDelegate {
         canvasView.isOpaque = false
         canvasView.drawingPolicy = .pencilOnly
         canvasView.isScrollEnabled = false
+        canvasView.drawing = PKDrawing()   // 新規画面は必ず白紙から始める（書き込み残り防止）
         contentView.addSubview(canvasView)
 
         topBar.backgroundColor = .secondarySystemBackground
@@ -140,6 +149,9 @@ final class PencilDrawViewController: UIViewController, UIScrollViewDelegate {
         infoLabel.textColor = .secondaryLabel
         infoLabel.textAlignment = .center
         infoLabel.lineBreakMode = .byTruncatingTail
+
+        setupBadge(priBadge)
+        setupBadge(difBadge)
         updateInfoLabel()
 
         let skipButton = makeChip(title: "スキップ", bg: .tertiarySystemFill, fg: .secondaryLabel)
@@ -153,7 +165,13 @@ final class PencilDrawViewController: UIViewController, UIScrollViewDelegate {
         rightStack.axis = .horizontal
         rightStack.spacing = 8
 
-        for v in [exitButton, infoLabel, rightStack] {
+        // 中央: バッジ(重要度/難易度) + 問題情報 を横並びに
+        let centerStack = UIStackView(arrangedSubviews: [priBadge, difBadge, infoLabel])
+        centerStack.axis = .horizontal
+        centerStack.spacing = 6
+        centerStack.alignment = .center
+
+        for v in [exitButton, centerStack, rightStack] {
             v.translatesAutoresizingMaskIntoConstraints = false
             topBar.addSubview(v)
         }
@@ -162,16 +180,46 @@ final class PencilDrawViewController: UIViewController, UIScrollViewDelegate {
             exitButton.bottomAnchor.constraint(equalTo: topBar.bottomAnchor, constant: -9),
             rightStack.trailingAnchor.constraint(equalTo: topBar.trailingAnchor, constant: -16),
             rightStack.bottomAnchor.constraint(equalTo: topBar.bottomAnchor, constant: -7),
-            infoLabel.centerXAnchor.constraint(equalTo: topBar.centerXAnchor),
-            infoLabel.centerYAnchor.constraint(equalTo: rightStack.centerYAnchor),
-            infoLabel.leadingAnchor.constraint(greaterThanOrEqualTo: exitButton.trailingAnchor, constant: 8),
-            infoLabel.trailingAnchor.constraint(lessThanOrEqualTo: rightStack.leadingAnchor, constant: -8),
+            centerStack.centerXAnchor.constraint(equalTo: topBar.centerXAnchor),
+            centerStack.centerYAnchor.constraint(equalTo: rightStack.centerYAnchor),
+            centerStack.leadingAnchor.constraint(greaterThanOrEqualTo: exitButton.trailingAnchor, constant: 8),
+            centerStack.trailingAnchor.constraint(lessThanOrEqualTo: rightStack.leadingAnchor, constant: -8),
         ])
+    }
+
+    private func setupBadge(_ b: UILabel) {
+        b.font = .systemFont(ofSize: 11, weight: .bold)
+        b.textAlignment = .center
+        b.layer.cornerRadius = 5
+        b.layer.masksToBounds = true
+        b.setContentHuggingPriority(.required, for: .horizontal)
+        b.setContentCompressionResistancePriority(.required, for: .horizontal)
+    }
+
+    // A=赤 / B=橙 / C=緑 の色を返す
+    private func gradeColor(_ g: String) -> UIColor {
+        switch g {
+        case "A": return .systemRed
+        case "B": return .systemOrange
+        case "C": return .systemGreen
+        default:  return .systemGray
+        }
+    }
+
+    private func styleBadge(_ b: UILabel, prefix: String, grade: String) {
+        if grade.isEmpty { b.isHidden = true; return }
+        b.isHidden = false
+        b.text = "  \(prefix)\(grade)  "
+        let c = gradeColor(grade)
+        b.textColor = c
+        b.backgroundColor = c.withAlphaComponent(0.15)
     }
 
     private func updateInfoLabel() {
         let parts = [countText, labelText, titleText].filter { !$0.isEmpty }
         infoLabel.text = parts.joined(separator: "  ")
+        styleBadge(priBadge, prefix: "重", grade: priorityText)
+        styleBadge(difBadge, prefix: "難", grade: difficultyText)
     }
 
     private func makeChip(title: String, bg: UIColor, fg: UIColor) -> UIButton {
@@ -210,11 +258,16 @@ final class PencilDrawViewController: UIViewController, UIScrollViewDelegate {
         canvasView.frame = contentView.bounds
         scrollView.contentSize = contentView.frame.size
         centerContent()
+        // ツールパレットや描画レイヤーがボタンの上に重なってタップを奪うのを防ぐため、
+        // 採点バーを常に最前面に固定する。
+        view.bringSubviewToFront(topBar)
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         showToolPicker()
+        // ツールパレット表示後にボタンが隠れないよう最前面へ
+        view.bringSubviewToFront(topBar)
     }
 
     private func showToolPicker() {
@@ -233,6 +286,8 @@ final class PencilDrawViewController: UIViewController, UIScrollViewDelegate {
         self.labelText = next.labelText
         self.titleText = next.titleText
         self.countText = next.countText
+        self.priorityText = next.priorityText
+        self.difficultyText = next.difficultyText
         updateInfoLabel()
         self.canvasView.drawing = PKDrawing()
         self.finished = false
