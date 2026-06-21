@@ -38,6 +38,7 @@ workflows:
           # CI補助スクリプト
           mkdir -p scripts
           cp add_plugin_files.rb scripts/
+          cp patch_appdelegate.py scripts/
           # アプリアイコン・起動画面の素材
           mkdir -p assets
           cp icon-only.png splash.png splash-dark.png assets/
@@ -70,24 +71,13 @@ workflows:
       - name: PencilKitプラグインを組み込み
         script: |
           cp ios-extras/PencilKitPlugin.swift ios/App/App/
-          # 新方式(CAPBridgedPlugin)では .m ファイルは使わない（競合回避のためコピーしない）。
-          # カスタムViewControllerを作り、capacitorDidLoadでPencilKitPluginを明示登録する。
-          cat > ios/App/App/MainViewController.swift <<'SWIFTEOF'
-          import UIKit
-          import Capacitor
-
-          class MainViewController: CAPBridgeViewController {
-              override open func capacitorDidLoad() {
-                  bridge?.registerPluginInstance(PencilKitPlugin())
-              }
-          }
-          SWIFTEOF
-          sed -i '' 's/^          //' ios/App/App/MainViewController.swift
-          # Main.storyboard のカスタムクラスを MainViewController に変更
-          sed -i '' 's/customClass="CAPBridgeViewController"/customClass="MainViewController"/g' ios/App/App/Base.lproj/Main.storyboard
           gem install xcodeproj --no-document
           ruby scripts/add_plugin_files.rb
-          echo "MainViewController を作成し storyboard を更新しました"
+          # storyboardには触らず、AppDelegateの起動完了処理でプラグインを登録する。
+          # （storyboardのsed書き換えは画面を壊すリスクがあるため避ける）
+          python3 scripts/patch_appdelegate.py ios/App/App/AppDelegate.swift
+          echo "AppDelegateにプラグイン登録を注入しました"
+          cat ios/App/App/AppDelegate.swift
       - name: アプリアイコン・起動画面を生成
         script: |
           npm install --save-dev @capacitor/assets
