@@ -70,9 +70,24 @@ workflows:
       - name: PencilKitプラグインを組み込み
         script: |
           cp ios-extras/PencilKitPlugin.swift ios/App/App/
-          cp ios-extras/PencilKitPlugin.m ios/App/App/
+          # 新方式(CAPBridgedPlugin)では .m ファイルは使わない（競合回避のためコピーしない）。
+          # カスタムViewControllerを作り、capacitorDidLoadでPencilKitPluginを明示登録する。
+          cat > ios/App/App/MainViewController.swift <<'SWIFTEOF'
+          import UIKit
+          import Capacitor
+
+          class MainViewController: CAPBridgeViewController {
+              override open func capacitorDidLoad() {
+                  bridge?.registerPluginInstance(PencilKitPlugin())
+              }
+          }
+          SWIFTEOF
+          sed -i '' 's/^          //' ios/App/App/MainViewController.swift
+          # Main.storyboard のカスタムクラスを MainViewController に変更
+          sed -i '' 's/customClass="CAPBridgeViewController"/customClass="MainViewController"/g' ios/App/App/Base.lproj/Main.storyboard
           gem install xcodeproj --no-document
           ruby scripts/add_plugin_files.rb
+          echo "MainViewController を作成し storyboard を更新しました"
       - name: アプリアイコン・起動画面を生成
         script: |
           npm install --save-dev @capacitor/assets
