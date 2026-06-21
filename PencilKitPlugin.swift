@@ -13,7 +13,13 @@ import UIKit
 /// 返り値:
 ///   { action: "correct" | "wrong" | "skip" | "exit", image: <base64 PNG> }
 @objc(PencilKitPlugin)
-public class PencilKitPlugin: CAPPlugin {
+public class PencilKitPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "PencilKitPlugin"
+    public let jsName = "PencilKitPlugin"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "open", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "close", returnType: CAPPluginReturnPromise)
+    ]
 
     @objc func open(_ call: CAPPluginCall) {
         guard let bgString = call.getString("background"),
